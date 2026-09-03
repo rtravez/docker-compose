@@ -1,0 +1,149 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    networks:
+      - cloud-rtravez
+    volumes:
+      - pgdata:/var/lib/postgresql/data/pgdata
+    environment:
+      POSTGRES_DB: db_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+      PGDATA: /var/lib/postgresql/data/pgdata
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d db_test" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    stop_grace_period: 30s
+  auth-service:
+    build:
+      context: ../authorization-server
+      dockerfile: Dockerfile
+    image: auth-service:latest
+    container_name: auth-service
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - cloud-rtravez
+    volumes:
+      - springdata:/tmp
+    environment:
+      SPRING_PROFILES_ACTIVE: test
+      SERVER_PORT: 8080
+      SERVER_SERVLET_CONTEXT_PATH: /authServices
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/db_test
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: admin
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-service:8080/authServices
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/authServices/actuator/health || exit 1" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+    stop_grace_period: 30s
+  msc-service:
+    build:
+      context: ../msc-root/msc-service
+      dockerfile: Dockerfile
+    image: msc-service:latest
+    container_name: msc-service
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    networks:
+      - cloud-rtravez
+    volumes:
+      - springdata:/tmp
+    environment:
+      SPRING_PROFILES_ACTIVE: test
+      SERVER_PORT: 8081
+      SERVER_SERVLET_CONTEXT_PATH: /mscServices
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/db_test
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: admin
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-service:8080/authServices
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8081/mscServices/actuator/health || exit 1" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+    stop_grace_period: 30s
+  msa-service:
+    build:
+      context: ../msa-root/msa-service
+      dockerfile: Dockerfile
+    image: msa-service:latest
+    container_name: msa-service
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    networks:
+      - cloud-rtravez
+    volumes:
+      - springdata:/tmp
+    environment:
+      SPRING_PROFILES_ACTIVE: test
+      SERVER_PORT: 8082
+      SERVER_SERVLET_CONTEXT_PATH: /msaServices
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/db_test
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: admin
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-service:8080/authServices
+      SPRING_URLS_FIND_USER_BY_IDENTIFICATION: http://msc-service:8081/mscServices/api/users/findUserByIdentification
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8082/msaServices/actuator/health || exit 1" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+      msc-service:
+        condition: service_healthy
+    stop_grace_period: 30s  
+  msc-web:
+      build:
+        context: ../msc-web
+        dockerfile: ci/Dockerfile
+      image: msc-web:latest
+      container_name: msc-web
+      restart: unless-stopped
+      ports:
+        - "4200:4200"
+      networks:
+        - cloud-rtravez
+      depends_on:
+        auth-service:
+          condition: service_healthy
+        msc-service:
+          condition: service_healthy
+        msa-service:
+          condition: service_healthy  
+networks:
+  cloud-rtravez:
+    driver: bridge
+volumes:
+  pgdata:
+    driver: local
+  springdata:
+    driver: local
