@@ -106,7 +106,7 @@ services:
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: admin
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-service:8080/authServices
-      SPRING_URLS_FIND_USER_BY_IDENTIFICATION: http://msc-service:8081/mscServices/api/users/findUserByIdentification
+      MSC_SERVICE_BASE_URL: http://msc-service:8081/mscServices
     healthcheck:
       test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8082/msaServices/actuator/health || exit 1" ]
       interval: 15s
