@@ -23,7 +23,7 @@ services:
     stop_grace_period: 30s
   auth-service:
     build:
-      context: ../authorization-server
+      context: ../auth-server
       dockerfile: Dockerfile
     image: auth-service:latest
     container_name: auth-service
@@ -72,7 +72,9 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/db_test
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: admin
+      OAUTH_CLIENT_SECRET: 12345
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-service:8080/authServices
+      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_OAUTH_ISSUER_URI: http://auth-service:8080/authServices
     healthcheck:
       test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8081/mscServices/actuator/health || exit 1" ]
       interval: 15s
@@ -105,7 +107,9 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/db_test
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: admin
+      OAUTH_CLIENT_SECRET: 12345
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-service:8080/authServices
+      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_OAUTH_ISSUER_URI: http://auth-service:8080/authServices
       MSC_SERVICE_BASE_URL: http://msc-service:8081/mscServices
     healthcheck:
       test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8082/msaServices/actuator/health || exit 1" ]
@@ -120,25 +124,25 @@ services:
         condition: service_healthy
       msc-service:
         condition: service_healthy
-    stop_grace_period: 30s  
+    stop_grace_period: 30s
   msc-web:
-      build:
-        context: ../msc-web
-        dockerfile: ci/Dockerfile
-      image: msc-web:latest
-      container_name: msc-web
-      restart: unless-stopped
-      ports:
-        - "4200:4200"
-      networks:
-        - cloud-rtravez
-      depends_on:
-        auth-service:
-          condition: service_healthy
-        msc-service:
-          condition: service_healthy
-        msa-service:
-          condition: service_healthy  
+    build:
+      context: ../msc-web
+      dockerfile: ci/Dockerfile
+    image: msc-web:latest
+    container_name: msc-web
+    restart: unless-stopped
+    ports:
+      - "4200:4200"
+    networks:
+      - cloud-rtravez
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      msc-service:
+        condition: service_healthy
+      msa-service:
+        condition: service_healthy
 networks:
   cloud-rtravez:
     driver: bridge
