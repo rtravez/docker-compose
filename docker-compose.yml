@@ -136,6 +136,10 @@ services:
       - "4200:4200"
     networks:
       - cloud-rtravez
+    environment:
+      AUTH_SERVICES_UPSTREAM: http://auth-service:8080
+      MSC_SERVICES_UPSTREAM: http://msc-service:8081
+      MSA_SERVICES_UPSTREAM: http://msa-service:8082
     depends_on:
       auth-service:
         condition: service_healthy
